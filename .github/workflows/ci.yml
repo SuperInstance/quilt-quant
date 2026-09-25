@@ -1,0 +1,17 @@
+name: ci
+on:
+  push: { branches: [main] }
+  pull_request:
+  workflow_dispatch:
+jobs:
+  desk-and-lab:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 24 }
+      - run: npm install --no-save yaml z-ai-web-dev-sdk@0.0.18 || true
+      - name: agent lab (offline, synthetic entropy, flagged)
+        run: cd lab && MOTH_OFFLINE=1 node play.mjs
+      - name: GAN-hardened gate law
+        run: node lab/gan-elites/verify.mjs
