@@ -6,7 +6,7 @@ import { dirname, join } from 'node:path';
 
 const HERE = dirname(import.meta.url);
 const API = 'https://api.mothquantum.com/api/v1';
-const KEY_PATHS = [join(HERE, 'moth_key.env'), '/home/z/my-project/scripts/quilt-lab/moth_key.env'];
+const KEY_PATHS = [join(HERE, 'moth_key.env'), join(HERE, '.env')];
 
 export function loadKey() {
   if (process.env.MOTH_KEY) return process.env.MOTH_KEY;
