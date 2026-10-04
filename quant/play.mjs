@@ -129,7 +129,7 @@ async function resetDesk() {
   await engine.set('mkt.closes', ORIG);
   for (const k of Object.keys(DEFAULTS)) await engine.set('p.' + k, DEFAULTS[k]);
   await engine.set('ai.ledger', []);
-  await engine.set('desk.champion', { gen: 0, strategy: 'sma_cross', params: { fast: 8, slow: 34, rsi_len: 14, rsi_max: 72, rsi_buy: 30, rsi_sell: 64 }, is_score: null, oos_score: null, verdict: '—' });
+  await engine.set('desk.champion', { gen: 0, gens: 0, strategy: 'sma_cross', params: { fast: 8, slow: 34, rsi_len: 14, rsi_max: 72, rsi_buy: 30, rsi_sell: 64 }, is_score: null, oos_score: null, verdict: '—' });
   await engine.set('desk.prev_champ', null);
   await engine.set('log.events', []);
 }
@@ -388,6 +388,23 @@ await H.check('FULL TRAINING RUN: 24 generations, OOS improves, promotions are m
   console.log(`    curve: ${led.filter(r => r.kind === 'promote').length} promotions, champion OOS ${champ.oos_score.toFixed(3)} (desk seeded at ${led[0].oos_score.toFixed(3)}), verdict ${champ.verdict}`);
 });
 
+await H.check('CHAMPION PROVENANCE: the card reports the gen the champion was BORN at, never the run length', async () => {
+  await resetDesk();
+  const t = await call('ai.trainer', { gens: 24, seed: 11 });
+  const led = await get('ai.ledger');
+  const champ = await get('desk.champion');
+  const promotes = led.filter(r => r.kind === 'promote');
+  const lastPromote = promotes[promotes.length - 1];
+  H.eq(champ.gens, 24, 'run length is reported as gens, separately from birth gen');
+  if (promotes.length === 0) {
+    H.eq(champ.gen, 0, 'no promotions — champion is still the gen-0 seed');
+  } else {
+    H.eq(champ.gen, lastPromote.gen, `champion card says gen ${champ.gen} but the champion was promoted at gen ${lastPromote.gen} — gen must be the gen of birth, not the run length`);
+    H.ok(champ.gen <= champ.gens, 'birth gen cannot exceed the run length');
+    console.log(`    champion born gen ${champ.gen}, detected at gen ${champ.gens} of the run — both shown, never conflated`);
+  }
+});
+
 await H.check('WITNESS CHAIN: re-derives from GENESIS; one flipped byte breaks it', async () => {
   const led = await get('ai.ledger');
   const head = verifyChain(led.map(stripTs), chainFieldsOf);
@@ -456,7 +473,7 @@ for (const r of led) {
   console.log(`  gen ${String(r.gen).padStart(2)}  ${r.kind.padEnd(7)}${wb}  ${String(r.strategy ?? '—').padEnd(14)}  f/s ${String(p.fast ?? '—').padStart(3)}/${String(p.slow ?? '—').padEnd(3)}  IS ${r.is_score == null ? '    —  ' : r.is_score.toFixed(3).padStart(6)}  OOS ${r.oos_score == null ? '    —  ' : r.oos_score.toFixed(3).padStart(6)}  ${r.verdict ?? ''}`);
 }
 const champ = await get('desk.champion');
-console.log(`\n  champion: gen ${champ.gen} — ${champ.strategy} fast=${champ.params.fast} slow=${champ.params.slow} rsi_max=${champ.params.rsi_max}`);
+console.log(`\n  champion: born gen ${champ.gen} (of ${champ.gens} gens) — ${champ.strategy} fast=${champ.params.fast} slow=${champ.params.slow} rsi_max=${champ.params.rsi_max}`);
 console.log(`  OOS score ${champ.oos_score?.toFixed(3)} — ${await get('met.wf')} out of sample`);
 
 // ── emit artifacts ────────────────────────────────────────────────────────────

@@ -4,7 +4,7 @@
  "bars": 760,
  "cells": 67,
  "checks": {
-  "pass": 15,
+  "pass": 16,
   "fail": 0
  },
  "tape": {
@@ -20,7 +20,8 @@
   }
  },
  "champion": {
-  "gen": 24,
+  "gen": 7,
+  "gens": 24,
   "strategy": "sma_cross",
   "params": {
    "fast": 5,

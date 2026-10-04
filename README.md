@@ -35,7 +35,7 @@ on the same vendored patched engine (patches 1–12) with **zero further engine
 changes**.
 
 ```
-node quant/play.mjs        # 15/15 checks, ~130ms, prints the learning curve
+node quant/play.mjs        # 16/16 checks, ~150ms, prints the learning curve
 open quant/index.html      # the desk, live in a browser (single file, no server)
 ```
 
@@ -108,7 +108,7 @@ the same seed replays byte-identically.
 `quant/play.mjs` carries its own quant stack, written separately from the
 sheet's kernel: prefix-sum SMAs (the sheet windows), a delta-array Wilder RSI
 (the sheet smooths inline), a settlement-accounting backtest (the sheet
-recurses daily PnL), two-pass Sharpe (the sheet uses sum/sum2). 15 checks:
+recurses daily PnL), two-pass Sharpe (the sheet uses sum/sum2). 16 checks:
 
 | # | check |
 |---|-------|
@@ -127,6 +127,7 @@ recurses daily PnL), two-pass Sharpe (the sheet uses sum/sum2). 15 checks:
 | 13 | determinism: same seed → byte-identical receipts |
 | 14 | one nudge re-prices every cell (snapshot discipline) |
 | 15 | buy & hold control group priced and compared |
+| 16 | CHAMPION PROVENANCE: card reports the champion's gen of birth, not the run length |
 
 ## The viewer
 
@@ -153,7 +154,7 @@ z-ai GLM with 15/30/45s backoff.
 engine/          vendored patched core (arcade lineage, patches 1–12, 36/36 upstream tests)
 shared/kit.mjs   harness, witness chain, cell builders, snippet interpolation
 quant/sheet.mjs  the desk: 67 cells (book, checks, indicators, pricing, WF, trainer, ledger)
-quant/play.mjs   the independent reference + 15-check harness
+quant/play.mjs   the independent reference + 16-check harness
 quant/viewer.mjs the browser desk (bundled to quant/index.html)
 experiments/     captured run output, quant.json (curve), llm_strategist, build_notes.md
 ```

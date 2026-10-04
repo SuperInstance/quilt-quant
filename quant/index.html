@@ -3896,7 +3896,7 @@ let champParams = { fast: await g('p.fast'), slow: await g('p.slow'), rsi_len: a
   rsi_max: await g('p.rsi_max'), rsi_buy: await g('p.rsi_buy'), rsi_sell: await g('p.rsi_sell') };
 let champStrategy = curStrategy;
 const seedEv = evalCand(champStrategy, champParams);
-let champ = { strategy: champStrategy, params: { ...champParams }, is_score: seedEv.is_score, oos_score: seedEv.oos_score };
+let champ = { gen: 0, strategy: champStrategy, params: { ...champParams }, is_score: seedEv.is_score, oos_score: seedEv.oos_score }; // gen = gen of BIRTH (0 = the seeded desk)
 await book({ kind: 'seed', gen: 0, strategy: champStrategy, params: { ...champParams },
   is_score: seedEv.is_score, oos_score: seedEv.oos_score, verdict: 'SEED', kept: true,
   why: 'champion seeded from the desk: OOS score ' + seedEv.oos_score.toFixed(3) + '.' });
@@ -3924,7 +3924,7 @@ for (let gen = 1; gen <= gens; gen++) {
     { cand: { is_score: ev.is_score, oos_score: ev.oos_score }, champ: { is_score: champ.is_score, oos_score: champ.oos_score } })).data;
   await s('rule.S7.verdict', { ...s7, ts: Date.now(), gen });
   if (s7.promote) {
-    champ = { strategy: cand.strategy, params: { ...cand.params }, is_score: ev.is_score, oos_score: ev.oos_score };
+    champ = { gen, strategy: cand.strategy, params: { ...cand.params }, is_score: ev.is_score, oos_score: ev.oos_score }; // record the gen this champion was BORN at
     champParams = { ...cand.params }; champStrategy = cand.strategy;
     workbench = { strategy: cand.strategy, params: { ...cand.params }, is_score: ev.is_score };
     kept++;
@@ -3940,13 +3940,15 @@ for (let gen = 1; gen <= gens; gen++) {
 
 // THE PROMOTION CASCADE — write the champion and its params; the reactive
 // graph re-prices indicators, signal, backtest, metrics, walk-forward, art.
-await s('desk.champion', { gen: gens, strategy: champ.strategy, params: { ...champ.params },
+// gen is the champion's gen of BIRTH (the promotion/seed gen); gens is the
+// run length (gen-of-detection of this card). Never conflate the two.
+await s('desk.champion', { gen: champ.gen ?? 0, gens, strategy: champ.strategy, params: { ...champ.params },
   is_score: champ.is_score, oos_score: champ.oos_score, verdict: lastVerdict });
 await s('p.strategy', champ.strategy);
 await s('p.fast', champ.params.fast); await s('p.slow', champ.params.slow);
 await s('p.rsi_len', champ.params.rsi_len); await s('p.rsi_max', champ.params.rsi_max);
 await s('p.rsi_buy', champ.params.rsi_buy); await s('p.rsi_sell', champ.params.rsi_sell);
-await logEv({ kind: 'trainer', text: 'trainer: ' + tried + ' candidates, ' + kept + ' promotions — champion gen ' + gens + ' OOS score ' + champ.oos_score.toFixed(3) });
+await logEv({ kind: 'trainer', text: 'trainer: ' + tried + ' candidates, ' + kept + ' promotions — champion born gen ' + (champ.gen ?? 0) + ' of ' + gens + ' gens, OOS score ' + champ.oos_score.toFixed(3) });
 return { ok: true, gens, tried, kept, champion: { ...champ }, ledger_len: ledger.length, head: prev };`;
 var ART_EQUITY = `
 // the desk's glass: equity + drawdown as unicode sparklines
@@ -3980,7 +3982,7 @@ await s('desk.flash', {
   kind: promoted ? 'promote' : 'champion',
   text: promoted
     ? 'NEW CHAMPION — OOS score ' + was.oos_score.toFixed(3) + ' → ' + champ.oos_score.toFixed(3) + ' (' + champ.strategy + ', fast ' + champ.params.fast + '/slow ' + champ.params.slow + '). Desk re-priced.'
-    : 'champion at gen ' + champ.gen + ' — OOS score ' + (champ.oos_score == null ? '—' : champ.oos_score.toFixed(3)) + '.',
+    : 'champion born gen ' + (champ.gen ?? 0) + (champ.gens != null ? ' of ' + champ.gens + ' gens' : '') + ' — OOS score ' + (champ.oos_score == null ? '—' : champ.oos_score.toFixed(3)) + '.',
   ts: Date.now() });
 await s('desk.prev_champ', champ ? { ...champ, params: { ...champ.params } } : null);
 const lg = await g('log.events');
@@ -3998,7 +4000,7 @@ function buildSheet(seed = 20260925) {
   push(v("desk.cash0", 1e4, "starting cash (S1)"));
   push(v("desk.flash", { kind: "", text: "desk ready — nudge a parameter cell or run the trainer.", ts: 0 }, "the desk bubble (refusals, promotions)"));
   push(v("desk.prev_champ", null, "previous champion (for the promotion flash)"));
-  push(v("desk.champion", { gen: 0, strategy: "sma_cross", params: { fast: 8, slow: 34, rsi_len: 14, rsi_max: 72, rsi_buy: 30, rsi_sell: 64 }, is_score: null, oos_score: null, verdict: "—" }, "the reigning config (S7)"));
+  push(v("desk.champion", { gen: 0, gens: 0, strategy: "sma_cross", params: { fast: 8, slow: 34, rsi_len: 14, rsi_max: 72, rsi_buy: 30, rsi_sell: 64 }, is_score: null, oos_score: null, verdict: "—" }, "the reigning config (S7) — gen = champion gen of birth, gens = run length"));
   push(v("log.events", [], "desk event log"));
   push(v("p.strategy", "sma_cross", "active strategy: sma_cross | rsi_reversion (S3)"));
   push(v("p.fast", 8, "sma_fast window (S2)"));
@@ -4398,7 +4400,7 @@ function render(st) {
     ["met.bnh_ret", "b&h return", fmtPct(M.met_bnh_ret)]
   ].map(([id, label, val]) => `<div class="qq-met" id="${id}"><span>${label}</span><b>${val}</b></div>`).join("");
   const c = st.champion ?? {};
-  document.getElementById("champion").innerHTML = `<div class="qq-champ-gen">gen ${c.gen ?? 0} · ${c.strategy ?? "—"}</div>
+  document.getElementById("champion").innerHTML = `<div class="qq-champ-gen">born gen ${c.gen ?? 0} · ran ${c.gens ?? c.gen ?? 0} gens · ${c.strategy ?? "—"}</div>
      <div class="qq-champ-params">fast ${c.params?.fast} · slow ${c.params?.slow} · rsi_len ${c.params?.rsi_len} · rsi_max ${c.params?.rsi_max}</div>
      <div class="qq-champ-scores"><span>IS ${c.is_score == null ? "—" : c.is_score.toFixed(3)}</span><span>OOS ${c.oos_score == null ? "—" : c.oos_score.toFixed(3)}</span></div>`;
   const wf = st.wf ?? {};
@@ -4462,7 +4464,7 @@ async function resetDesk() {
   for (const [id, v2] of Object.entries({ "p.strategy": "sma_cross", "p.fast": 8, "p.slow": 34, "p.rsi_len": 14, "p.rsi_max": 72, "p.rsi_buy": 30, "p.rsi_sell": 64, "p.fee_bps": 2, "p.wf_pct": 70 }))
     await engine.set(id, v2);
   await engine.set("ai.ledger", []);
-  await engine.set("desk.champion", { gen: 0, strategy: "sma_cross", params: { fast: 8, slow: 34, rsi_len: 14, rsi_max: 72, rsi_buy: 30, rsi_sell: 64 }, is_score: null, oos_score: null, verdict: "—" });
+  await engine.set("desk.champion", { gen: 0, gens: 0, strategy: "sma_cross", params: { fast: 8, slow: 34, rsi_len: 14, rsi_max: 72, rsi_buy: 30, rsi_sell: 64 }, is_score: null, oos_score: null, verdict: "—" });
   await engine.set("desk.prev_champ", null);
   await engine.set("desk.flash", { kind: "", text: "desk reset — nudge a parameter or run the trainer.", ts: Date.now() });
   refresh();

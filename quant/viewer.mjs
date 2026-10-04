@@ -216,7 +216,7 @@ function render(st) {
   // champion card
   const c = st.champion ?? {};
   document.getElementById('champion').innerHTML =
-    `<div class="qq-champ-gen">gen ${c.gen ?? 0} · ${c.strategy ?? '—'}</div>
+    `<div class="qq-champ-gen">born gen ${c.gen ?? 0} · ran ${c.gens ?? c.gen ?? 0} gens · ${c.strategy ?? '—'}</div>
      <div class="qq-champ-params">fast ${c.params?.fast} · slow ${c.params?.slow} · rsi_len ${c.params?.rsi_len} · rsi_max ${c.params?.rsi_max}</div>
      <div class="qq-champ-scores"><span>IS ${c.is_score == null ? '—' : c.is_score.toFixed(3)}</span><span>OOS ${c.oos_score == null ? '—' : c.oos_score.toFixed(3)}</span></div>`;
   // wf detail
@@ -286,7 +286,7 @@ async function runTrainer() {
 async function resetDesk() {
   for (const [id, v] of Object.entries({ 'p.strategy': 'sma_cross', 'p.fast': 8, 'p.slow': 34, 'p.rsi_len': 14, 'p.rsi_max': 72, 'p.rsi_buy': 30, 'p.rsi_sell': 64, 'p.fee_bps': 2, 'p.wf_pct': 70 })) await engine.set(id, v);
   await engine.set('ai.ledger', []);
-  await engine.set('desk.champion', { gen: 0, strategy: 'sma_cross', params: { fast: 8, slow: 34, rsi_len: 14, rsi_max: 72, rsi_buy: 30, rsi_sell: 64 }, is_score: null, oos_score: null, verdict: '—' });
+  await engine.set('desk.champion', { gen: 0, gens: 0, strategy: 'sma_cross', params: { fast: 8, slow: 34, rsi_len: 14, rsi_max: 72, rsi_buy: 30, rsi_sell: 64 }, is_score: null, oos_score: null, verdict: '—' });
   await engine.set('desk.prev_champ', null);
   await engine.set('desk.flash', { kind: '', text: 'desk reset — nudge a parameter or run the trainer.', ts: Date.now() });
   refresh();
